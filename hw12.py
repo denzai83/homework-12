@@ -5,6 +5,9 @@ import pickle
 import re
 
 
+path = Path('contacts.bin')
+
+
 class Field:
     def __init__(self, value):
         self.value = value
@@ -113,12 +116,18 @@ class AddressBook(UserDict):
         for contact in self.data.values():
             yield f'{contact.name}: {" ".join(map(str, contact.phones))} {str(contact.birthday)} {self.data[contact.name.value].days_to_birthday()}'
 
+    def load(self, path):
+        if path.exists():
+            with open(path, 'rb') as fh:
+                self.data = pickle.load(fh)
+
+    def save(self, path):
+        with open(path, 'wb') as fh:
+            pickle.dump(self.data, fh)
+
 
 contacts = AddressBook()
-path = Path('contacts.bin')
-if path.exists():
-    with open(path, 'rb') as fh:
-        contacts.data = pickle.load(fh)
+contacts.load(path)
 
 
 def input_error(func):
@@ -181,7 +190,8 @@ def delete_number(message):
 
 
 def goodbye():
-    return print('Good bye!')
+    contacts.save(path)
+    return 'Good bye!'
 
 
 @input_error
@@ -238,22 +248,25 @@ commands = {
 
 
 @input_error
+def parser(command):
+    for key in commands:
+        if command.lower().strip().startswith(key):
+            return commands[key](command[len(key):].strip())
+
+
+@input_error
 def main():
     while True:
         command = input('>>>: ')
 
         if command.lower() in ('.', 'close', 'exit', 'good bye'):
-            goodbye()
+            print(goodbye())
             break
-        elif command.lower() not in commands.keys():
+        elif command.lower().startswith(tuple(key for key in commands.keys())):
+            print(parser(command))
+        else:
             print(search_contacts(command))
-
-        for key in commands:
-            if command.lower().strip().startswith(key):
-                print(commands[key](command[len(key):].strip()))
 
 
 if __name__ == '__main__':
     main()
-    with open(path, 'wb') as fh:
-        pickle.dump(contacts.data, fh)
